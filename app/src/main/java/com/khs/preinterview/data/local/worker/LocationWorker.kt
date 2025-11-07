@@ -15,7 +15,6 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.khs.preinterview.Test
 import com.khs.preinterview.data.local.db.LocationDao
 import com.khs.preinterview.data.local.model.LocationModel
 import dagger.assisted.Assisted
@@ -33,16 +32,14 @@ class LocationWorker @AssistedInject constructor(
 
     @SuppressLint("MissingPermission")
     override suspend fun doWork(): Result {
-        Test.cnt++
-
         return try {
             if (!hasLocationPermission()) {
                 return Result.failure()
             }
             val location: Location = getCurrentLocationOnce()
             val record = LocationModel(
-                latitude = location.latitude - (Test.cnt * 0.001),
-                longitude = location.longitude - (Test.cnt * 0.001)
+                latitude = location.latitude,
+                longitude = location.longitude
             )
             locationDao.insert(record)
             Result.success()
