@@ -36,6 +36,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+/**
+ * 지도 표시 및 위치 기록을 관리하는 메인 Activity입니다.
+ * [AndroidEntryPoint]로 Hilt 의존성 주입을 활성화합니다.
+ * [OnMapReadyCallback]을 구현하여 NaverMap 초기화 이벤트를 처리합니다.
+ */
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -43,14 +48,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mapView: MapView
     private lateinit var naverMap: NaverMap
-    private val markerList = mutableListOf<Marker>()
-    private var marketHistory = emptyList<LocationModel>()
-    private val currentWindow = InfoWindow()
+    private val markerList = mutableListOf<Marker>()        // 현재 지도에 추가된 마커 목록
+    private var marketHistory = emptyList<LocationModel>()  // 지도에 이미 표시된 기록 목록
+    private val currentWindow = InfoWindow()        // 현재 열려있는 정보 창
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationSource: FusedLocationSource
 
-    val isBasic = MutableLiveData(true)
+    val isBasic = MutableLiveData(true)     // 지도 타입(기본/위성)을 DataBinding으로 제어하기 위한 LiveData
 
     private val viewModel: MainViewModel by viewModels()
 
@@ -77,6 +82,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         )
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
+        // 현 위치 저장 버튼 클릭 리스너
         binding.tvSave.setOnClickListener {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 viewModel.enqueueLocationWork()
@@ -88,18 +94,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    /**
+     * 지도가 준비되었을 때 호출되는 콜백 (onMapReadyCallback)
+     */
     override fun onMapReady(map: NaverMap) {
         naverMap = map
         naverMap.locationSource = locationSource
         naverMap.locationTrackingMode = LocationTrackingMode.Face   //NONE,NOFOLLOW,FOLLOW,FACE
 
         // 지도 설정
-        naverMap.uiSettings.isZoomControlEnabled = true
-        naverMap.uiSettings.isCompassEnabled = true
-        naverMap.uiSettings.isScaleBarEnabled = true
-        naverMap.uiSettings.isLocationButtonEnabled = false
+        naverMap.uiSettings.isZoomControlEnabled = true      //확대/축소 사용
+        naverMap.uiSettings.isCompassEnabled = true         //나침반 사용
+        naverMap.uiSettings.isScaleBarEnabled = true        //축적 바 사용
+        naverMap.uiSettings.isLocationButtonEnabled = false   //xml에서 커스텀 버튼 사용
 
-        binding.locationBtn.map = naverMap
+        binding.locationBtn.map = naverMap      // XML의 LocationButtonView에 NaverMap 인스턴스 연결
 
         naverMap.setOnMapClickListener { point, latLng ->
             currentWindow.close()
@@ -161,6 +170,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    /**
+     * ViewModel의 위치 기록 Flow를 관찰하여 변경 사항이 있을 때마다 지도 마커를 업데이트합니다.
+     */
     private fun observeLocationData() {
         lifecycleScope.launch {
             viewModel.locationRecords.collectLatest { records ->
@@ -170,9 +182,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
+    /**
+     * 데이터베이스에서 가져온 위치 기록을 기반으로 지도 마커를 추가합니다.
+     */
     private fun updateMapMarkers(records: List<LocationModel>) {
         if (!::naverMap.isInitialized) return
 
+        // 이미 지도에 표시된 기록을 제외한 새로운 기록만 필터링합니다.
         val newRecords = records.filter { it !in marketHistory }
         if (newRecords.isEmpty()) {
             return
@@ -186,6 +202,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 height = 60
                 map = naverMap
 
+                // 마커 클릭 리스너 설정: 정보창(InfoWindow) 표시/닫기 로직
                 onClickListener = Overlay.OnClickListener {
                     currentWindow.adapter =
                         object : InfoWindow.DefaultTextAdapter(this@MainActivity) {
@@ -206,6 +223,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         marketHistory = records
     }
 
+    /**
+     * DataBinding을 사용하여 마커에 표시될 커스텀 View를 비트맵으로 변환합니다.
+     */
     private fun createCustomMarker(context: Context, text: String): OverlayImage {
         val binding = DataBindingUtil.inflate<CustomMarkerBinding>(
             LayoutInflater.from(context),
@@ -222,6 +242,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return OverlayImage.fromBitmap(bitmap)
     }
 
+    /**
+     * 지도 타입(기본/위성)을 토글하고 NaverMap에 적용합니다.
+     */
     fun toggleMapType() {
         isBasic.value = !(isBasic.value ?: false)
         naverMap.mapType =

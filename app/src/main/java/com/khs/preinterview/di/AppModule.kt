@@ -12,6 +12,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import jakarta.inject.Singleton
 
+/**
+ * Hilt 모듈: 의존성 주입을 위해 필요한 객체들을 생성하고 제공합니다.
+ * SingletonComponent에 설치되어 앱의 생명주기 동안 단 하나의 인스턴스만 유지됩니다.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
